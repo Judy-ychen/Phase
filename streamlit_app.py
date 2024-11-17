@@ -5,7 +5,7 @@ import time
 from datetime import date
 
 # Backend URL
-BASE_URL = "http://127.0.0.1:5000"
+BASE_URL = "http://129.133.72.121:5000"
 
 # Initialize Session State
 if "access_token" not in st.session_state:

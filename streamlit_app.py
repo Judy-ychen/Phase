@@ -5,7 +5,7 @@ import time
 from datetime import date
 
 # Backend URL
-BASE_URL = "http://129.133.72.121:5000"
+BASE_URL = "http://127.0.0.1:8501"
 
 # Initialize Session State
 if "access_token" not in st.session_state:
@@ -70,7 +70,7 @@ def main():
         
     if st.session_state["page"] == "login":
         login_page()
-    elif st.session_state["page"] == "signup":
+    if st.session_state["page"] == "signup":
         signup_page()
     elif st.session_state["page"] == "main":
         dashboard_page()
@@ -245,34 +245,52 @@ def signup_page():
         signup_button_col, back_to_login_col = st.columns([1, 1], gap="large")
         with signup_button_col:
             def handle_signup():
-                payload = {
-                    "email": signup_email,
-                    "password": signup_password,
-                    "name": signup_name,
-                    "age": signup_age,
-                    "height": signup_height,
-                    "weight": signup_weight,
-                }
-                result = authenticate("signup", payload)
-                if result and result.get("message") == "User created successfully":
+                try:
+                    # Step 1: Sign Up User
+                    payload = {
+                        "email": signup_email,
+                        "password": signup_password,
+                        "name": signup_name,
+                        "age": signup_age,
+                        "height": signup_height,
+                        "weight": signup_weight,
+                    }
+                    result = authenticate("signup", payload)
+                    if not result or result.get("message") != "User created successfully":
+                        st.error("Sign-up failed. Please try again.")
+                        return
+
+                    # Step 2: Log In User Automatically
                     login_payload = {"email": signup_email, "password": signup_password}
                     login_result = authenticate("login", login_payload)
-                    if login_result and "access_token" in login_result:
-                        st.session_state["access_token"] = login_result["access_token"]
-                        headers = {"Authorization": f"Bearer {st.session_state['access_token']}"}
-                        cycle_payload = {
-                            "period_start": signup_start_date.strftime("%Y-%m-%d"),
-                            "period_end": signup_end_date.strftime("%Y-%m-%d"),
-                        }
-                        cycle_result = requests.post(f"{BASE_URL}/cycle-data", json=cycle_payload, headers=headers)
-                        if cycle_result.status_code == 200 and fetch_cycle_data():
-                            set_success_and_navigate("Sign-up successful! Redirecting to the main page...", "main")
-                        else:
-                            st.error("Sign-up successful, but failed to save cycle data. Please add it manually.")
-                    else:
+                    if not login_result or "access_token" not in login_result:
                         st.error("Sign-up successful, but login failed. Please log in manually.")
-                else:
-                    st.error("Sign-up failed. Please try again.")
+                        return
+                    
+                    # Save access token
+                    st.session_state["access_token"] = login_result["access_token"]
+
+                    # Step 3: Save Cycle Data
+                    headers = {"Authorization": f"Bearer {st.session_state['access_token']}"}
+                    cycle_payload = {
+                        "period_start": signup_start_date.strftime("%Y-%m-%d"),
+                        "period_end": signup_end_date.strftime("%Y-%m-%d"),
+                    }
+                    cycle_result = requests.post(f"{BASE_URL}/cycle-data", json=cycle_payload, headers=headers)
+                    if cycle_result.status_code != 200:
+                        st.error("Sign-up successful, but failed to save cycle data. Please add it manually.")
+                        return
+
+                    # Step 4: Fetch Cycle Data to Confirm
+                    if not fetch_cycle_data():
+                        st.warning("Cycle data could not be loaded. Please update it in the dashboard.")
+                        return
+
+                    # Navigate to main page
+                    set_success_and_navigate("Sign-up successful! Redirecting to the main page...", "main")
+
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
 
             st.button("Sign Up", key="signup_button", on_click=handle_signup)
 

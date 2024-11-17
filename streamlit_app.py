@@ -70,7 +70,7 @@ def main():
         
     if st.session_state["page"] == "login":
         login_page()
-    elif st.session_state["page"] == "signup":
+    if st.session_state["page"] == "signup":
         signup_page()
     elif st.session_state["page"] == "main":
         dashboard_page()
